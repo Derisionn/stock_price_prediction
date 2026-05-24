@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/* ─── Google Fonts are loaded via next/font ─── */
+
+/* ─── CSS Custom Properties ─── */
+:root {
+  --color-bg:          #0b0e11;
+  --color-bg-surface:  #161a1e;
+  --color-bg-elevated: #1a1e26;
+  --color-border:      #2b2f35;
+  --color-border-subtle: #1e2329;
+
+  --color-text-primary:   #eaecef;
+  --color-text-secondary: #848e9c;
+  --color-text-muted:     #485563;
+
+  --color-green:  #0ecb81;
+  --color-red:    #f6465d;
+  --color-yellow: #f0b90b;
+  --color-yellow-dark: #d4a017;
+
+  --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --font-mono: var(--font-mono), 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ─── Reset & Base ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar styling ─── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ─── Utility: hide scrollbar ─── */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Font utilities ─── */
+.font-mono {
+  font-family: var(--font-mono) !important;
+}
+
+/* ─── Chart canvas antialiasing ─── */
+canvas {
+  display: block;
+  image-rendering: crisp-edges;
+}
+
+/* ─── Animations ─── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(14, 203, 129, 0.6); }
+  50%       { opacity: 0.6; box-shadow: 0 0 12px rgba(14, 203, 129, 0.9); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* ─── Price flash animations ─── */
+@keyframes flash-green {
+  0%   { background-color: rgba(14, 203, 129, 0.2); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0%   { background-color: rgba(246, 70, 93, 0.2); }
+  100% { background-color: transparent; }
+}
+
+.flash-green { animation: flash-green 0.5s ease-out; }
+.flash-red   { animation: flash-red 0.5s ease-out; }
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(240, 185, 11, 0.2);
+  color: var(--color-text-primary);
+}
