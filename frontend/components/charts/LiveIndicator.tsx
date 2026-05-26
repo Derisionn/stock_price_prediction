@@ -7,7 +7,7 @@ import clsx from 'clsx';
 export function LiveIndicator() {
   const { isConnected, isLive, marketState } = useChartStore();
 
-  const isMarketOpen = marketState?.is_open ?? true;
+  const isMarketOpen = true; // Forced to true to show green state for testing/demo
 
   if (!isConnected) {
     return (
