@@ -31,7 +31,7 @@ class MLService:
 
         # Input size 7 (open, high, low, close, volume, rsi, sma_20)
         model = LSTMModel(input_size=7, hidden_size=64, num_layers=2, output_size=4)
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
         model.eval()
 
         import joblib

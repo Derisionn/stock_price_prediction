@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from typing import List, Optional
+import httpx
 
 from app.config.settings import FINNHUB_API_KEY, FINNHUB_REST_BASE
 from app.services.candle_aggregation_service import candle_service, TIMEFRAME_SECONDS

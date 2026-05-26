@@ -9,3 +9,6 @@ torch
 scikit-learn
 pandas
 numpy
+ta
+joblib
+matplotlib
