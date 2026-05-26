@@ -40,3 +40,21 @@ export async function fetchSymbols(query?: string): Promise<Symbol[]> {
   const data = await res.json();
   return data.symbols as Symbol[];
 }
+
+export async function fetchPredictions(
+  symbol: string,
+  interval: Timeframe,
+  steps = 15
+): Promise<Candle[]> {
+  const params = new URLSearchParams({
+    symbol,
+    interval,
+    steps: String(steps),
+  });
+
+  const res = await fetch(`${API_BASE}/api/predict?${params}`);
+  if (!res.ok) throw new Error(`Failed to fetch predictions: ${res.statusText}`);
+
+  const data = await res.json();
+  return data.predictions as Candle[];
+}

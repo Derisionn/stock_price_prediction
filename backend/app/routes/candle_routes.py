@@ -40,3 +40,28 @@ async def market_state() -> dict:
 async def get_symbols(q: Optional[str] = Query(None, description="Search query")) -> dict:
     """Return list of supported symbols."""
     return {"symbols": get_supported_symbols(q)}
+
+@router.get("/predict")
+async def get_prediction(
+    symbol: str = Query(..., description="Stock symbol, e.g. AAPL"),
+    interval: str = Query("1m", description="Candle interval"),
+    steps: int = Query(15, description="Number of future candles to predict")
+) -> dict:
+    """Predict future candles using ML LSTM model."""
+    symbol = symbol.upper()
+    try:
+        from app.ml.service import ml_service
+        # fetch last 150 candles for training/prediction
+        data = await get_historical_candles(symbol, interval, None, None, limit=150)
+        candles = data["candles"]
+        
+        predictions = ml_service.predict(symbol, interval, candles, steps=steps)
+        return {
+            "symbol": symbol,
+            "interval": interval,
+            "predictions": predictions
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))

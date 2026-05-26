@@ -26,5 +26,5 @@ CORS_ALLOW_ORIGINS: List[str] = (
 
 # Default Trading Symbols
 DEFAULT_SYMBOLS: List[str] = [
-    "AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "NVDA", "META"
+    "TSLA"
 ]

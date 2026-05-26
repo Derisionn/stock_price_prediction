@@ -16,6 +16,7 @@ import { useChartStore } from '@/store/chartStore';
 import { OHLCTooltip } from './OHLCTooltip';
 import { FloatingTooltip } from './FloatingTooltip';
 import type { Candle } from '@/types/candle';
+import { fetchPredictions } from '@/services/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,13 +77,18 @@ export function TradingChart() {
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const areaSeriesRef   = useRef<ISeriesApi<'Area'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const predictionSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const predictionAreaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
   const prevLenRef      = useRef(0);
   const candlesRef      = useRef<Candle[]>([]);
   const isPanningRef    = useRef(false);
   const isClampingRef   = useRef(false); // re-entrant guard for range clamp
 
-  const { chartType, candles, isLoading, autoScroll, setAutoScroll, setHoveredCandle, setCrosshairPoint } =
+  const { chartType, candles, isLoading, autoScroll, setAutoScroll, setHoveredCandle, setCrosshairPoint, symbol, timeframe } =
     useChartStore();
+
+  const [predictions, setPredictions] = React.useState<Candle[]>([]);
+  const [isPredicting, setIsPredicting] = React.useState(false);
 
   const [showLatestButton, setShowLatestButton] = React.useState(false);
   const isLatestVisibleRef = useRef(true);
@@ -165,10 +171,35 @@ export function TradingChart() {
     });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
 
+    // Prediction series (distinct colors)
+    const predictionSeries = chart.addSeries(CandlestickSeries, {
+      priceScaleId: 'left',
+      upColor:       'rgba(156, 39, 176, 0.8)', // Purple
+      downColor:     'rgba(255, 152, 0, 0.8)', // Orange
+      borderVisible: false,
+      wickUpColor:   'rgba(156, 39, 176, 0.8)',
+      wickDownColor: 'rgba(255, 152, 0, 0.8)',
+    });
+
+    // Prediction Area series (green theme)
+    const predictionAreaSeries = chart.addSeries(AreaSeries, {
+      priceScaleId: 'left',
+      lineColor: '#0ecb81', // Green line
+      topColor: 'rgba(14, 203, 129, 0.4)', // Green gradient top
+      bottomColor: 'rgba(14, 203, 129, 0)', // Transparent bottom
+      lineWidth: 2,
+      crosshairMarkerVisible: true,
+      crosshairMarkerRadius: 4,
+      crosshairMarkerBorderColor: '#fff',
+      crosshairMarkerBackgroundColor: '#0ecb81',
+    });
+
     chartRef.current        = chart;
     candleSeriesRef.current = candleSeries;
     areaSeriesRef.current   = areaSeries;
     volumeSeriesRef.current = volumeSeries;
+    predictionSeriesRef.current = predictionSeries;
+    predictionAreaSeriesRef.current = predictionAreaSeries;
 
     // ── Zoom clamp & visibility tracking ─────────────────────────────────
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -245,22 +276,26 @@ export function TradingChart() {
       el.removeEventListener('touchstart', onDown);
       el.removeEventListener('touchend',   onUp);
       chart.remove();
-      chartRef.current = candleSeriesRef.current = areaSeriesRef.current = volumeSeriesRef.current = null;
+      chartRef.current = candleSeriesRef.current = areaSeriesRef.current = volumeSeriesRef.current = predictionSeriesRef.current = predictionAreaSeriesRef.current = null;
     };
   }, [setAutoScroll, setHoveredCandle, setCrosshairPoint]);
 
   // ── Sync visibility based on chartType ───────────────────────────────────
   useEffect(() => {
-    if (!candleSeriesRef.current || !areaSeriesRef.current || !volumeSeriesRef.current) return;
+    if (!candleSeriesRef.current || !areaSeriesRef.current || !volumeSeriesRef.current || !predictionSeriesRef.current || !predictionAreaSeriesRef.current) return;
     
     if (chartType === 'candlestick') {
       candleSeriesRef.current.applyOptions({ visible: true });
       areaSeriesRef.current.applyOptions({ visible: false });
       volumeSeriesRef.current.applyOptions({ visible: true });
+      predictionSeriesRef.current.applyOptions({ visible: true });
+      predictionAreaSeriesRef.current.applyOptions({ visible: false });
     } else {
       candleSeriesRef.current.applyOptions({ visible: false });
       areaSeriesRef.current.applyOptions({ visible: true });
       volumeSeriesRef.current.applyOptions({ visible: false });
+      predictionSeriesRef.current.applyOptions({ visible: false });
+      predictionAreaSeriesRef.current.applyOptions({ visible: true });
     }
   }, [chartType]);
 
@@ -311,6 +346,28 @@ export function TradingChart() {
     chartRef.current?.timeScale().scrollToRealTime();
   }, [setAutoScroll]);
 
+  // Clear predictions on symbol/timeframe change
+  useEffect(() => {
+    setPredictions([]);
+    predictionSeriesRef.current?.setData([]);
+    predictionAreaSeriesRef.current?.setData([]);
+  }, [symbol, timeframe]);
+
+  const handlePredict = async () => {
+    setIsPredicting(true);
+    try {
+      const data = await fetchPredictions(symbol, timeframe, 15);
+      setPredictions(data);
+      predictionSeriesRef.current?.setData(data.map(toChartCandle));
+      predictionAreaSeriesRef.current?.setData(data.map(toChartArea));
+      chartRef.current?.timeScale().fitContent();
+    } catch (err) {
+      console.error('Prediction error:', err);
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="relative w-full h-full flex flex-col bg-[#0b0e11]">
@@ -320,6 +377,16 @@ export function TradingChart() {
 
         <OHLCTooltip />
         <FloatingTooltip />
+
+        {/* Predict Button */}
+        <button
+          onClick={handlePredict}
+          disabled={isPredicting || isLoading}
+          style={{ padding: '6px 12px' }}
+          className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-[#9c27b0] text-white text-xs font-bold rounded-md shadow hover:bg-[#7b1fa2] disabled:opacity-50 transition-colors duration-150"
+        >
+          {isPredicting ? 'Predicting...' : 'Predict 15 Candles'}
+        </button>
 
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0b0e11]/80 backdrop-blur-sm z-20">

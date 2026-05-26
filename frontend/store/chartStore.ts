@@ -42,8 +42,8 @@ interface ChartState {
 }
 
 export const useChartStore = create<ChartState>((set, get) => ({
-  symbol: 'AAPL',
-  timeframe: '5m' as Timeframe,
+  symbol: 'TSLA',
+  timeframe: '1d' as Timeframe,
   chartType: 'candlestick' as const,
   candles: [],
   isLoading: false,

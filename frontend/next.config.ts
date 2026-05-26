@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
   },
   // Output standalone for optimized production builds
   output: 'standalone',
+  turbopack: {
+    root: process.cwd(),
+  },
 };
 
 export default nextConfig;
