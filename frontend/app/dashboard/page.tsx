@@ -165,7 +165,7 @@ export default function DashboardPage() {
         <span className="text-[#485563] text-xs">
           Powered by TradingView Lightweight Charts · Finnhub Realtime Data
         </span>
-        <span className="text-[#485563] text-xs font-mono">
+        <span className="text-[#485563] text-xs font-mono" suppressHydrationWarning>
           {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
         </span>
       </footer>

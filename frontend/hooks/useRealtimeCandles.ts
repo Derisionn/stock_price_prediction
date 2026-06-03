@@ -25,6 +25,7 @@ export function useRealtimeCandles() {
     setIsLoading(true);
     try {
       const candles = await fetchHistoricalCandles(symbol, timeframe, 500);
+      console.log(`[useRealtimeCandles] Fetched ${candles?.length} candles for ${symbol} (${timeframe})`);
       setCandles(candles);
     } catch (err) {
       console.error('[useRealtimeCandles] Failed to load historical:', err);
