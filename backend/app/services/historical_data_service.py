@@ -74,9 +74,9 @@ async def get_historical_candles(
     if interval not in INTERVAL_TO_RESOLUTION:
         raise ValueError(f"Invalid interval. Use: {list(INTERVAL_TO_RESOLUTION.keys())}")
 
-    # Check if we have live/seeded data in memory
+    # Check if we have live/seeded data in memory (at least 100 candles)
     in_memory = candle_service.get_candles(symbol, interval, limit=limit)
-    if in_memory:
+    if len(in_memory) >= 100:
         return {
             "symbol": symbol,
             "interval": interval,
