@@ -45,6 +45,12 @@ export interface CandleUpdate {
   is_new: boolean;
 }
 
+export interface MLPredictionUpdate {
+  type: 'ml_prediction_update';
+  symbol: string;
+  predictions: Candle[];
+}
+
 export interface Symbol {
   symbol: string;
   description: string;

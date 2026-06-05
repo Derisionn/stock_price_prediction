@@ -3,7 +3,7 @@
  * Handles subscribe/unsubscribe and message routing.
  */
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws/stocks';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8001/ws/stocks';
 
 type MessageHandler = (data: unknown) => void;
 type StatusHandler = (connected: boolean) => void;

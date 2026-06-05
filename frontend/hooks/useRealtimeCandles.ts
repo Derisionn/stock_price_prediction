@@ -45,7 +45,8 @@ export function useRealtimeCandles() {
     wsService.subscribe(symbol);
 
     const offMessage = wsService.onMessage((raw) => {
-      const msg = raw as CandleUpdate;
+      const msg = raw as any; // Cast to any to check type safely
+      
       if (
         msg.type === 'candle_update' &&
         msg.symbol === currentSymbolRef.current &&

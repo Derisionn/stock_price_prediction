@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Configuration
-FINNHUB_API_KEY: str = os.getenv("FINNHUB_API_KEY", "")
-FINNHUB_REST_BASE: str = "https://finnhub.io/api/v1"
-FINNHUB_WS_URL: str = "wss://ws.finnhub.io"
+BINANCE_REST_BASE: str = "https://api.binance.com/api/v3"
+BINANCE_WS_URL: str = "wss://stream.binance.com:9443/ws"
+ML_SERVICE_URL: str = os.getenv("ML_SERVICE_URL", "http://localhost:8000")
 
 # CORS Configuration
 # In production, set CORS_ALLOW_ORIGINS env var as a comma-separated list.
@@ -26,5 +26,5 @@ CORS_ALLOW_ORIGINS: List[str] = (
 
 # Default Trading Symbols
 DEFAULT_SYMBOLS: List[str] = [
-    "TSLA"
+    "BTCUSDT"
 ]

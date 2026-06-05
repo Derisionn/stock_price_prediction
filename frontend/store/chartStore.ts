@@ -9,6 +9,7 @@ interface ChartState {
 
   // Candle data
   candles: Candle[];
+  predictions: Candle[];
   isLoading: boolean;
 
   // Live state
@@ -29,6 +30,7 @@ interface ChartState {
   setTimeframe: (timeframe: Timeframe) => void;
   setChartType: (type: 'candlestick' | 'area') => void;
   setCandles: (candles: Candle[]) => void;
+  setPredictions: (predictions: Candle[]) => void;
   updateActiveCandle: (candle: Candle) => void;
   appendCandle: (candle: Candle) => void;
   setIsLoading: (loading: boolean) => void;
@@ -42,10 +44,11 @@ interface ChartState {
 }
 
 export const useChartStore = create<ChartState>((set, get) => ({
-  symbol: 'TSLA',
+  symbol: 'BTCUSDT',
   timeframe: '1d' as Timeframe,
   chartType: 'candlestick' as const,
   candles: [],
+  predictions: [],
   isLoading: false,
   isConnected: false,
   isLive: false,
@@ -55,9 +58,9 @@ export const useChartStore = create<ChartState>((set, get) => ({
   crosshairPoint: null,
   priceInfo: null,
 
-  setSymbol: (symbol) => set({ symbol, candles: [], isLoading: true }),
+  setSymbol: (symbol) => set({ symbol, candles: [], predictions: [], isLoading: true }),
 
-  setTimeframe: (timeframe) => set({ timeframe, candles: [], isLoading: true }),
+  setTimeframe: (timeframe) => set({ timeframe, candles: [], predictions: [], isLoading: true }),
 
   setChartType: (chartType) => set({ chartType }),
 
@@ -72,6 +75,8 @@ export const useChartStore = create<ChartState>((set, get) => ({
       set({ priceInfo: { price: last.close, change, changePercent } });
     }
   },
+
+  setPredictions: (predictions) => set({ predictions }),
 
   updateActiveCandle: (candle) => {
     const { candles } = get();

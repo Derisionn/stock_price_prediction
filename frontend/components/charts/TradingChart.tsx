@@ -8,6 +8,8 @@ import {
   CandlestickSeries,
   AreaSeries,
   HistogramSeries,
+  LineSeries,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
@@ -16,8 +18,6 @@ import { useChartStore } from '@/store/chartStore';
 import { OHLCTooltip } from './OHLCTooltip';
 import { FloatingTooltip } from './FloatingTooltip';
 import type { Candle } from '@/types/candle';
-import { fetchPredictions } from '@/services/api';
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Hard minimum visible bars — prevents zooming past the 5m timeframe */
@@ -44,9 +44,10 @@ const CHART_COLORS = {
 // We subtract it to shift the UTC timestamp to Local Time before feeding to the chart.
 const tzOffset = new Date().getTimezoneOffset() * 60;
 
-function toChartCandle(c: Candle) {
+function toChartCandle(c: Candle, isDaily: boolean) {
+  const time = isDaily ? Math.floor(c.time / 86400) * 86400 : (c.time - tzOffset);
   return {
-    time:  (c.time - tzOffset) as UTCTimestamp,
+    time:  time as UTCTimestamp,
     open:  c.open,
     high:  c.high,
     low:   c.low,
@@ -54,16 +55,18 @@ function toChartCandle(c: Candle) {
   };
 }
 
-function toChartArea(c: Candle) {
+function toChartArea(c: Candle, isDaily: boolean) {
+  const time = isDaily ? Math.floor(c.time / 86400) * 86400 : (c.time - tzOffset);
   return {
-    time:  (c.time - tzOffset) as UTCTimestamp,
+    time:  time as UTCTimestamp,
     value: c.close,
   };
 }
 
-function toChartVolume(c: Candle) {
+function toChartVolume(c: Candle, isDaily: boolean) {
+  const time = isDaily ? Math.floor(c.time / 86400) * 86400 : (c.time - tzOffset);
   return {
-    time:  (c.time - tzOffset) as UTCTimestamp,
+    time:  time as UTCTimestamp,
     value: c.volume,
     color: c.close >= c.open ? CHART_COLORS.volumeUp : CHART_COLORS.volumeDown,
   };
@@ -78,20 +81,35 @@ export function TradingChart() {
   const areaSeriesRef   = useRef<ISeriesApi<'Area'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const predictionSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const predictionAreaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
   const prevLenRef      = useRef(0);
   const candlesRef      = useRef<Candle[]>([]);
   const isPanningRef    = useRef(false);
   const isClampingRef   = useRef(false); // re-entrant guard for range clamp
 
-  const { chartType, candles, isLoading, autoScroll, setAutoScroll, setHoveredCandle, setCrosshairPoint, symbol, timeframe } =
+  const { chartType, candles, predictions, isLoading, autoScroll, setAutoScroll, setHoveredCandle, setCrosshairPoint, symbol, timeframe } =
     useChartStore();
-
-  const [predictions, setPredictions] = React.useState<Candle[]>([]);
-  const [isPredicting, setIsPredicting] = React.useState(false);
 
   const [showLatestButton, setShowLatestButton] = React.useState(false);
   const isLatestVisibleRef = useRef(true);
+  const [isPredicting, setIsPredicting] = React.useState(false);
+
+  const handlePredict = useCallback(async () => {
+    try {
+      setIsPredicting(true);
+      const { fetchPredictions } = await import('@/services/api');
+      const predictedCandles = await fetchPredictions(symbol);
+      useChartStore.getState().setPredictions(predictedCandles);
+    } catch (error) {
+      console.error("Prediction failed:", error);
+      alert("Prediction failed. Please check the backend console.");
+    } finally {
+      setIsPredicting(false);
+    }
+  }, [symbol]);
+
+  const handleClearPredictions = useCallback(() => {
+    useChartStore.getState().setPredictions([]);
+  }, []);
 
   // ── Chart initialisation (runs once) ────────────────────────────────────
   useEffect(() => {
@@ -171,27 +189,15 @@ export function TradingChart() {
     });
     volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
 
-    // Prediction series (distinct colors)
+    // Prediction Candlestick Series
     const predictionSeries = chart.addSeries(CandlestickSeries, {
       priceScaleId: 'left',
-      upColor:       'rgba(156, 39, 176, 0.8)', // Purple
-      downColor:     'rgba(255, 152, 0, 0.8)', // Orange
-      borderVisible: false,
-      wickUpColor:   'rgba(156, 39, 176, 0.8)',
-      wickDownColor: 'rgba(255, 152, 0, 0.8)',
-    });
-
-    // Prediction Area series (green theme)
-    const predictionAreaSeries = chart.addSeries(AreaSeries, {
-      priceScaleId: 'left',
-      lineColor: '#0ecb81', // Green line
-      topColor: 'rgba(14, 203, 129, 0.4)', // Green gradient top
-      bottomColor: 'rgba(14, 203, 129, 0)', // Transparent bottom
-      lineWidth: 2,
-      crosshairMarkerVisible: true,
-      crosshairMarkerRadius: 4,
-      crosshairMarkerBorderColor: '#fff',
-      crosshairMarkerBackgroundColor: '#0ecb81',
+      upColor:       'rgba(176, 38, 255, 0.4)',   // Semi-transparent purple fill
+      downColor:     'transparent',               // Hollow for down
+      borderVisible: true,
+      borderColor:   '#b026ff',                   // Solid purple border
+      wickUpColor:   '#b026ff',
+      wickDownColor: '#b026ff',
     });
 
     chartRef.current        = chart;
@@ -199,7 +205,6 @@ export function TradingChart() {
     areaSeriesRef.current   = areaSeries;
     volumeSeriesRef.current = volumeSeries;
     predictionSeriesRef.current = predictionSeries;
-    predictionAreaSeriesRef.current = predictionAreaSeries;
 
     // ── Zoom clamp & visibility tracking ─────────────────────────────────
     chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -276,26 +281,22 @@ export function TradingChart() {
       el.removeEventListener('touchstart', onDown);
       el.removeEventListener('touchend',   onUp);
       chart.remove();
-      chartRef.current = candleSeriesRef.current = areaSeriesRef.current = volumeSeriesRef.current = predictionSeriesRef.current = predictionAreaSeriesRef.current = null;
+      chartRef.current = candleSeriesRef.current = areaSeriesRef.current = volumeSeriesRef.current = predictionSeriesRef.current = null;
     };
   }, [setAutoScroll, setHoveredCandle, setCrosshairPoint]);
 
   // ── Sync visibility based on chartType ───────────────────────────────────
   useEffect(() => {
-    if (!candleSeriesRef.current || !areaSeriesRef.current || !volumeSeriesRef.current || !predictionSeriesRef.current || !predictionAreaSeriesRef.current) return;
+    if (!candleSeriesRef.current || !areaSeriesRef.current || !volumeSeriesRef.current) return;
     
     if (chartType === 'candlestick') {
       candleSeriesRef.current.applyOptions({ visible: true });
       areaSeriesRef.current.applyOptions({ visible: false });
       volumeSeriesRef.current.applyOptions({ visible: true });
-      predictionSeriesRef.current.applyOptions({ visible: true });
-      predictionAreaSeriesRef.current.applyOptions({ visible: false });
     } else {
       candleSeriesRef.current.applyOptions({ visible: false });
       areaSeriesRef.current.applyOptions({ visible: true });
       volumeSeriesRef.current.applyOptions({ visible: false });
-      predictionSeriesRef.current.applyOptions({ visible: false });
-      predictionAreaSeriesRef.current.applyOptions({ visible: true });
     }
   }, [chartType]);
 
@@ -318,55 +319,69 @@ export function TradingChart() {
     const currLen = candles.length;
 
     if (prevLen === 0 || currLen < prevLen) {
-      // Full load or timeframe switch
-      candleSeriesRef.current.setData(candles.map(toChartCandle));
-      areaSeriesRef.current.setData(candles.map(toChartArea));
-      volumeSeriesRef.current.setData(candles.map(toChartVolume));
+      const isDaily = timeframe === '1d';
+      candleSeriesRef.current.setData(candles.map(c => toChartCandle(c, isDaily)));
+      areaSeriesRef.current.setData(candles.map(c => toChartArea(c, isDaily)));
+      volumeSeriesRef.current.setData(candles.map(c => toChartVolume(c, isDaily)));
       chartRef.current?.timeScale().fitContent();
     } else if (currLen === prevLen) {
       // Active candle update — touch last bar only
       const last = candles[currLen - 1];
-      candleSeriesRef.current.update(toChartCandle(last));
-      areaSeriesRef.current.update(toChartArea(last));
-      volumeSeriesRef.current.update(toChartVolume(last));
+      const isDaily = timeframe === '1d';
+      candleSeriesRef.current.update(toChartCandle(last, isDaily));
+      areaSeriesRef.current.update(toChartArea(last, isDaily));
+      volumeSeriesRef.current.update(toChartVolume(last, isDaily));
     } else {
       // New candle appended
       const last = candles[currLen - 1];
-      candleSeriesRef.current.update(toChartCandle(last));
-      areaSeriesRef.current.update(toChartArea(last));
-      volumeSeriesRef.current.update(toChartVolume(last));
+      const isDaily = timeframe === '1d';
+      candleSeriesRef.current.update(toChartCandle(last, isDaily));
+      areaSeriesRef.current.update(toChartArea(last, isDaily));
+      volumeSeriesRef.current.update(toChartVolume(last, isDaily));
       if (autoScroll) chartRef.current?.timeScale().scrollToRealTime();
     }
 
     prevLenRef.current = currLen;
-  }, [candles, autoScroll]);
+  }, [candles, autoScroll, timeframe]);
+
+  // ── Sync predictions ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!predictionSeriesRef.current) return;
+    const isDaily = timeframe === '1d';
+    
+    if (predictions.length === 0) {
+      predictionSeriesRef.current.setData([]);
+    } else {
+      // Predictions are always 1-minute interval. 
+      // Do not round to 1d even if the main chart is 1d, to prevent duplicate timestamps.
+      const uniquePredictions = [];
+      const seenTimes = new Set();
+      
+      for (const c of predictions) {
+        const time = (c.time - tzOffset) as UTCTimestamp;
+        if (!seenTimes.has(time)) {
+          seenTimes.add(time);
+          uniquePredictions.push({
+            time,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+          });
+        }
+      }
+      
+      // Ensure strictly ascending order for Lightweight Charts
+      uniquePredictions.sort((a, b) => (a.time as number) - (b.time as number));
+      
+      predictionSeriesRef.current.setData(uniquePredictions);
+    }
+  }, [predictions, timeframe]);
 
   const scrollToLatest = useCallback(() => {
     setAutoScroll(true);
     chartRef.current?.timeScale().scrollToRealTime();
   }, [setAutoScroll]);
-
-  // Clear predictions on symbol/timeframe change
-  useEffect(() => {
-    setPredictions([]);
-    predictionSeriesRef.current?.setData([]);
-    predictionAreaSeriesRef.current?.setData([]);
-  }, [symbol, timeframe]);
-
-  const handlePredict = async () => {
-    setIsPredicting(true);
-    try {
-      const data = await fetchPredictions(symbol, timeframe, 15);
-      setPredictions(data);
-      predictionSeriesRef.current?.setData(data.map(toChartCandle));
-      predictionAreaSeriesRef.current?.setData(data.map(toChartArea));
-      chartRef.current?.timeScale().fitContent();
-    } catch (err) {
-      console.error('Prediction error:', err);
-    } finally {
-      setIsPredicting(false);
-    }
-  };
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -378,15 +393,36 @@ export function TradingChart() {
         <OHLCTooltip />
         <FloatingTooltip />
 
-        {/* Predict Button */}
-        <button
-          onClick={handlePredict}
-          disabled={isPredicting || isLoading}
-          style={{ padding: '6px 12px' }}
-          className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-[#9c27b0] text-white text-xs font-bold rounded-md shadow hover:bg-[#7b1fa2] disabled:opacity-50 transition-colors duration-150"
-        >
-          {isPredicting ? 'Predicting...' : 'Predict 15 Candles'}
-        </button>
+        {/* Prediction Buttons */}
+        <div className="absolute top-4 right-16 z-10 flex gap-2">
+          {predictions.length > 0 && (
+            <button
+              onClick={handleClearPredictions}
+              className="px-3 py-1.5 bg-[#2b2f35] text-gray-300 text-xs font-semibold rounded shadow hover:bg-[#3b4048] transition-colors"
+            >
+              Clear
+            </button>
+          )}
+          <button
+            onClick={handlePredict}
+            disabled={isPredicting}
+            className={`px-3 py-1.5 bg-[#b026ff] text-white text-xs font-bold rounded shadow hover:bg-[#c150ff] transition-colors ${
+              isPredicting ? 'opacity-70 cursor-not-allowed' : ''
+            }`}
+          >
+            {isPredicting ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Predicting...
+              </span>
+            ) : (
+              '✨ Predict 15m'
+            )}
+          </button>
+        </div>
 
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0b0e11]/80 backdrop-blur-sm z-20">

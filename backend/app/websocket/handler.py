@@ -4,7 +4,7 @@ import logging
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.websocket.connection_manager import manager
-from app.providers.finnhub_ws_client import finnhub_client
+from app.providers.binance_ws_client import binance_client
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ async def handle_websocket_connection(websocket: WebSocket) -> None:
 
             if msg_type == "subscribe" and symbol:
                 manager.subscribe(websocket, symbol)
-                finnhub_client.add_symbol(symbol)
+                binance_client.add_symbol(symbol)
                 logger.info(f"Client subscribed to symbol: {symbol}")
                 # Send acknowledgment
                 await websocket.send_text(

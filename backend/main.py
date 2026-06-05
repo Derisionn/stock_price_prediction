@@ -11,12 +11,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config.settings import CORS_ALLOW_ORIGINS, DEFAULT_SYMBOLS, FINNHUB_API_KEY
+from app.config.settings import CORS_ALLOW_ORIGINS, DEFAULT_SYMBOLS
 
 from app.routes.candle_routes import router as candle_router
 from app.routes.websocket_routes import router as ws_router
-from app.providers.finnhub_ws_client import finnhub_client
+from app.providers.binance_ws_client import binance_client
 from app.services.candle_aggregation_service import candle_service
+from app.services.ml_integration_service import ml_service_client
 from app.websocket.broadcaster import broadcast_candle_update
 
 # Configure logging
@@ -37,19 +38,23 @@ async def lifespan(app: FastAPI):
     # Wire candle updates to the broadcaster
     candle_service.register_callback(broadcast_candle_update)
 
+    # Start ML integration client (registers its own callback)
+    await ml_service_client.start()
+
     # Pre-subscribe to default symbols
     for symbol in DEFAULT_SYMBOLS:
-        finnhub_client.add_symbol(symbol)
+        binance_client.add_symbol(symbol)
 
-    # Start Finnhub WebSocket client (or simulation)
-    await finnhub_client.start()
+    # Start Binance WebSocket client
+    await binance_client.start()
 
-    logger.info("Backend ready. Finnhub client started.")
+    logger.info("Backend ready. Binance client started.")
     yield
 
     # Shutdown
-    logger.info("Shutting down Finnhub client...")
-    await finnhub_client.stop()
+    logger.info("Shutting down Binance client...")
+    await binance_client.stop()
+    await ml_service_client.stop()
     logger.info("Backend shutdown complete.")
 
 
@@ -77,9 +82,7 @@ app.include_router(ws_router, tags=["websocket"])
 @app.get("/health")
 async def health() -> dict:
     return {
-        "status": "ok",
-        "finnhub_key_set": bool(
-            FINNHUB_API_KEY and 
-            FINNHUB_API_KEY != "your_finnhub_api_key_here"
-        ),
+        "status": "online",
+        "binance_connected": binance_client._running,
+        "default_symbols": DEFAULT_SYMBOLS
     }

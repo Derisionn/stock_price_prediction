@@ -1,6 +1,6 @@
 import type { Candle, Timeframe, MarketState, Symbol } from '@/types/candle';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
 export async function fetchHistoricalCandles(
   symbol: string,
@@ -24,35 +24,8 @@ export async function fetchHistoricalCandles(
   return data.candles as Candle[];
 }
 
-export async function fetchMarketState(): Promise<MarketState> {
-  const res = await fetch(`${API_BASE}/api/market-state`);
-  if (!res.ok) throw new Error('Failed to fetch market state');
-  return res.json();
-}
-
-export async function fetchSymbols(query?: string): Promise<Symbol[]> {
-  const params = new URLSearchParams();
-  if (query) params.set('q', query);
-
-  const res = await fetch(`${API_BASE}/api/symbols?${params}`);
-  if (!res.ok) throw new Error('Failed to fetch symbols');
-
-  const data = await res.json();
-  return data.symbols as Symbol[];
-}
-
-export async function fetchPredictions(
-  symbol: string,
-  interval: Timeframe,
-  steps = 15
-): Promise<Candle[]> {
-  const params = new URLSearchParams({
-    symbol,
-    interval,
-    steps: String(steps),
-  });
-
-  const res = await fetch(`${API_BASE}/api/predict?${params}`);
+export async function fetchPredictions(symbol: string): Promise<Candle[]> {
+  const res = await fetch(`${API_BASE}/api/predict?symbol=${symbol}`);
   if (!res.ok) throw new Error(`Failed to fetch predictions: ${res.statusText}`);
 
   const data = await res.json();

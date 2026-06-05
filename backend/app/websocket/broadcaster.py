@@ -29,3 +29,19 @@ async def broadcast_candle_update(
         "is_new": is_new,
     }
     await manager.broadcast_to_symbol(symbol, message)
+
+
+async def broadcast_prediction_update(
+    symbol: str,
+    predictions: list,
+) -> None:
+    """
+    Called by MLIntegrationService when new predictions are available.
+    Broadcasts the future predicted candles to all subscribed clients.
+    """
+    message = {
+        "type": "ml_prediction_update",
+        "symbol": symbol,
+        "predictions": predictions,
+    }
+    await manager.broadcast_to_symbol(symbol, message)

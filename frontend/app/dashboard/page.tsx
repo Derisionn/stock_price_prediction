@@ -9,7 +9,6 @@ import { LiveIndicator } from '@/components/charts/LiveIndicator';
 import { SymbolSearch } from '@/components/ui/SymbolSearch';
 import { useRealtimeCandles } from '@/hooks/useRealtimeCandles';
 import { useChartStore } from '@/store/chartStore';
-import { fetchMarketState } from '@/services/api';
 
 function MarketStatsBar() {
   const { candles, symbol } = useChartStore();
@@ -73,23 +72,8 @@ function MarketStatsBar() {
 }
 
 export default function DashboardPage() {
-  const { setMarketState } = useChartStore();
-
   // Start realtime candle streaming
   useRealtimeCandles();
-
-  // Fetch market state periodically
-  useEffect(() => {
-    async function loadMarketState() {
-      try {
-        const state = await fetchMarketState();
-        setMarketState(state);
-      } catch {}
-    }
-    loadMarketState();
-    const interval = setInterval(loadMarketState, 30_000);
-    return () => clearInterval(interval);
-  }, [setMarketState]);
 
   return (
     <div className="flex flex-col h-screen bg-[#0b0e11] overflow-hidden">
@@ -163,7 +147,7 @@ export default function DashboardPage() {
       {/* ─── Footer ─── */}
       <footer className="flex-shrink-0 flex items-center justify-between px-6 py-1.5 border-t border-[#2b2f35]/30 bg-[#0b0e11]">
         <span className="text-[#485563] text-xs">
-          Powered by TradingView Lightweight Charts · Finnhub Realtime Data
+          Powered by TradingView Lightweight Charts · Binance Realtime Data
         </span>
         <span className="text-[#485563] text-xs font-mono" suppressHydrationWarning>
           {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
